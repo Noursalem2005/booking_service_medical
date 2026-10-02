@@ -6,6 +6,8 @@ import type { IAppointmentRepository } from '../../../appointments/domain/reposi
 import { SCHEDULE_EXCEPTION_REPOSITORY } from '../../domain/repositories/schedule-exception.repository';
 import type { IScheduleExceptionRepository } from '../../domain/repositories/schedule-exception.repository';
 import { SlotGeneratorService, TimeSlot } from '../../domain/services/slot-generator.service';
+import { CLOCK } from '../../../../core/application/clock.port';
+import type { Clock } from '../../../../core/application/clock.port';
 
 @Injectable()
 export class GetAvailableSlotsUseCase {
@@ -18,6 +20,8 @@ export class GetAvailableSlotsUseCase {
     private readonly appointmentRepository: IAppointmentRepository,
     @Inject(SCHEDULE_EXCEPTION_REPOSITORY)
     private readonly exceptionRepository: IScheduleExceptionRepository,
+    @Inject(CLOCK)
+    private readonly clock: Clock,
   ) {}
 
   async execute(doctorClinicId: string, dateStr: string): Promise<TimeSlot[]> {
@@ -32,6 +36,6 @@ export class GetAvailableSlotsUseCase {
     const existingAppointments = await this.appointmentRepository.findByDoctorClinic(doctorClinicId, startOfDay, endOfDay);
     const exceptions = await this.exceptionRepository.findByDoctorAndDateRange(doctorClinicId, startOfDay, endOfDay);
 
-    return this.slotGenerator.generateSlotsForDate(dateStr, schedule, existingAppointments, exceptions);
+    return this.slotGenerator.generateSlotsForDate(dateStr, schedule, existingAppointments, exceptions, this.clock.now());
   }
 }

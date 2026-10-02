@@ -1,7 +1,8 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { APPOINTMENT_REPOSITORY } from '../../domain/repositories/appointment.repository';
 import type { IAppointmentRepository } from '../../domain/repositories/appointment.repository';
 import { AppointmentEntity } from '../../domain/entities/appointment.entity';
+import { AppointmentNotFoundException } from '../../domain/exceptions/appointment.exceptions';
 import { UpdateAppointmentStatusDto } from '../dto/update-appointment-status.dto';
 
 @Injectable()
@@ -14,17 +15,12 @@ export class UpdateAppointmentStatusUseCase {
   async execute(id: string, dto: UpdateAppointmentStatusDto): Promise<AppointmentEntity> {
     const appointment = await this.appointmentRepository.findById(id);
     if (!appointment) {
-      throw new NotFoundException('Appointment not found');
+      throw new AppointmentNotFoundException(id);
     }
 
-    const updated = await this.appointmentRepository.update(id, {
-      status: dto.status,
-    });
+    // Throws InvalidStatusTransitionException for illegal moves (e.g. CANCELLED -> CONFIRMED).
+    appointment.changeStatus(dto.status);
 
-    if (!updated) {
-      throw new BadRequestException('Failed to update status');
-    }
-
-    return updated;
+    return this.appointmentRepository.save(appointment);
   }
 }

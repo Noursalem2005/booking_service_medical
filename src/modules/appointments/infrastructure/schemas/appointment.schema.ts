@@ -57,6 +57,13 @@ export class AppointmentSchemaClass {
 
   @Prop({ type: Boolean, default: false })
   isPaid: boolean;
+
+  // Soft delete: a non-null deletedAt hides the record from every query.
+  @Prop({ type: Date, default: null })
+  deletedAt?: Date | null;
+
+  @Prop({ type: String })
+  deletedBy?: string;
 }
 
 export const AppointmentSchema = SchemaFactory.createForClass(AppointmentSchemaClass);
@@ -69,3 +76,4 @@ AppointmentSchema.pre('save', function (this: any) {
 
 AppointmentSchema.index({ doctorClinicId: 1, appointmentDate: 1, status: 1 });
 AppointmentSchema.index({ patientId: 1, appointmentDate: 1 });
+AppointmentSchema.index({ status: 1, appointmentDate: 1 });

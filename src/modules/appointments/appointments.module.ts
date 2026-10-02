@@ -9,6 +9,10 @@ import { GetDoctorAppointmentsUseCase } from './application/use-cases/get-doctor
 import { GetPatientAppointmentsUseCase } from './application/use-cases/get-patient-appointments.use-case';
 import { RescheduleAppointmentUseCase } from './application/use-cases/reschedule-appointment.use-case';
 import { UpdateAppointmentStatusUseCase } from './application/use-cases/update-appointment-status.use-case';
+import { UpdateAppointmentUseCase } from './application/use-cases/update-appointment.use-case';
+import { DeleteAppointmentUseCase } from './application/use-cases/delete-appointment.use-case';
+import { GetAppointmentUseCase } from './application/use-cases/get-appointment.use-case';
+import { SearchAppointmentsUseCase } from './application/use-cases/search-appointments.use-case';
 import { AppointmentsController } from './presentation/appointments.controller';
 
 @Module({
@@ -26,6 +30,10 @@ import { AppointmentsController } from './presentation/appointments.controller';
     GetPatientAppointmentsUseCase,
     RescheduleAppointmentUseCase,
     UpdateAppointmentStatusUseCase,
+    UpdateAppointmentUseCase,
+    DeleteAppointmentUseCase,
+    GetAppointmentUseCase,
+    SearchAppointmentsUseCase,
   ],
   exports: [APPOINTMENT_REPOSITORY, BookAppointmentUseCase],
 })

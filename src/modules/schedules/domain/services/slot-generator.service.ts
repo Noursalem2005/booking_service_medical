@@ -1,5 +1,6 @@
 import { DoctorScheduleEntity } from '../entities/doctor-schedule.entity';
 import { AppointmentEntity } from '../../../appointments/domain/entities/appointment.entity';
+import { AppointmentStatus } from '../../../appointments/domain/enums/appointment-status.enum';
 import { ScheduleExceptionEntity } from '../entities/schedule-exception.entity';
 
 export interface TimeSlot {
@@ -15,6 +16,7 @@ export class SlotGeneratorService {
     schedule: DoctorScheduleEntity | null,
     existingAppointments: AppointmentEntity[],
     exceptions: ScheduleExceptionEntity[] = [],
+    now: Date = new Date(),
   ): TimeSlot[] {
     if (!schedule || !schedule.weeklySchedule) {
       return [];
@@ -64,14 +66,19 @@ export class SlotGeneratorService {
           ),
         );
 
-        // Check if overlapping with existing confirmed appointments
-        const isBooked = existingAppointments.some((apt) => apt.timeSlot === timeSlotString);
+        // A slot is taken by any appointment that has not been cancelled
+        const isBooked = existingAppointments.some(
+          (apt) => apt.timeSlot === timeSlotString && apt.status !== AppointmentStatus.CANCELLED,
+        );
+
+        // Slots that already started cannot be booked (mirrors the booking rule)
+        const isPast = slotStartTime.getTime() <= now.getTime();
 
         slots.push({
           startTime: slotStartTime,
           endTime: slotEndTime,
           timeSlotString,
-          isAvailable: !isInBreak && !isBooked,
+          isAvailable: !isInBreak && !isBooked && !isPast,
         });
 
         currentSlotStart += slotDurationMs;
