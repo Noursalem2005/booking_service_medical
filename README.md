@@ -1,114 +1,201 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 📅 Booking Service (`booking-service`)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A high-performance, Domain-Driven Design (DDD) microservice in NestJS responsible for:
+1. **Doctor Schedules & Real-Time Availability Slot Generation**
+2. **Appointment Lifecycle Management** (Booking, Rescheduling, Cancelling, Searching, Updating, Soft Deleting)
+3. **Digital Prescriptions Management** (Issuing, Searching, Detailed View, Cancelling)
+4. **Domain Exception Handling, System Clock & Custom Domain Policies**
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🏗️ Architecture & Modular DDD Structure
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+The microservice strictly enforces **Clean Architecture & Bounded Context Modular DDD**:
 
-## Project setup
-
-```bash
-$ npm install
+```
+booking-service/src/
+├── core/                               <-- Shared Kernel & Cross-Cutting Infrastructure
+│   ├── application/
+│   │   ├── clock.port.ts               <-- System Clock Port interface for deterministic testing
+│   │   └── dto/
+│   │       └── pagination-query.dto.ts <-- Standard Pagination Query DTO (page, limit)
+│   ├── domain/
+│   │   ├── exceptions/
+│   │   │   └── domain.exception.ts     <-- Base Domain Exception class
+│   │   ├── pagination.ts              <-- Pagination result wrapper
+│   │   └── time.util.ts               <-- Time calculations & ISO string parsing utilities
+│   ├── infrastructure/
+│   │   ├── database/mongodb/           <-- Database connection module
+│   │   └── system-clock.ts            <-- Real System Clock Implementation
+│   ├── presentation/
+│   │   └── filters/
+│   │       └── domain-exception.filter.ts <-- Global Filter translating Domain Exceptions to HTTP responses
+│   └── core.module.ts
+│
+└── modules/                            <-- Domain Bounded Context Feature Modules
+    ├── appointments/                   <-- Appointment Lifecycle Context
+    │   ├── application/
+    │   │   ├── dto/                    <-- BookAppointmentDto, UpdateAppointmentDto, SearchAppointmentsDto, etc.
+    │   │   └── use-cases/              <-- Book, Cancel, Reschedule, Search, Delete, Update Status Use Cases
+    │   ├── domain/
+    │   │   ├── entities/               <-- AppointmentEntity & status state machine
+    │   │   ├── enums/                  <-- AppointmentStatus, AppointmentType
+    │   │   ├── exceptions/             <-- AppointmentNotFoundException, InvalidSlotException, etc.
+    │   │   ├── policies/               <-- AppointmentSlotPolicy, AppointmentStatusPolicy
+    │   │   └── repositories/           <-- IAppointmentRepository interface
+    │   ├── infrastructure/             <-- Mongo Schema & Mongo Repository Implementation
+    │   ├── presentation/               <-- AppointmentsController (REST API)
+    │   └── appointments.module.ts
+    │
+    ├── schedules/                      <-- Doctor Schedule & Slot Generation Context
+    │   ├── application/
+    │   │   ├── dto/                    <-- SetScheduleDto, AddScheduleExceptionDto
+    │   │   └── use-cases/              <-- SetDoctorSchedule, AddScheduleException, GetAvailableSlots Use Cases
+    │   ├── domain/
+    │   │   ├── entities/               <-- DoctorScheduleEntity, ScheduleExceptionEntity
+    │   │   ├── enums/                  <-- ExceptionType (HOLIDAY, LEAVE, etc.)
+    │   │   ├── repositories/           <-- IDoctorScheduleRepository, IScheduleExceptionRepository
+    │   │   └── services/               <-- SlotGeneratorService (real-time slot calculation)
+    │   ├── infrastructure/             <-- Mongo Schemas & Mongo Repository Implementations
+    │   ├── presentation/               <-- SchedulesController (REST API)
+    │   └── schedules.module.ts
+    │
+    └── prescriptions/                  <-- Digital Prescriptions Context
+        ├── application/
+        │   ├── dto/                    <-- IssuePrescriptionDto, CancelPrescriptionDto, SearchPrescriptionsDto
+        │   └── use-cases/              <-- Issue, Get, Search, Cancel Prescription Use Cases
+        ├── domain/
+        │   ├── entities/               <-- PrescriptionEntity
+        │   ├── enums/                  <-- PrescriptionStatus (ACTIVE, FULFILLED, CANCELLED, EXPIRED)
+        │   ├── exceptions/             <-- PrescriptionNotFoundException, PrescriptionAlreadyCancelledException
+        │   ├── ports/                  <-- AppointmentLookupPort
+        │   ├── repositories/           <-- IPrescriptionRepository interface
+        │   └── value-objects/          <-- PrescriptionItemValueObject (medication details)
+        ├── infrastructure/
+        │   ├── adapters/               <-- AppointmentsModuleLookupAdapter
+        │   ├── repositories/           <-- MongoPrescriptionRepository
+        │   └── schemas/                <-- PrescriptionSchema
+        ├── presentation/               <-- PrescriptionsController (REST API)
+        └── prescriptions.module.ts
 ```
 
-## Compile and run the project
+---
+
+## 📡 API Catalog & Endpoints
+
+### 1. Appointments Controller (`/appointments`)
+
+| Method | Endpoint Path | Summary | Description & Payload / Query Params |
+|---|---|---|---|
+| `POST` | `/appointments` | Book Appointment | Books a new appointment slot with overlap validation & queue number calculation.<br>Payload: `patientId`, `doctorClinicId`, `scheduleId`, `appointmentDate`, `timeSlot`, `durationMinutes`, `type`, `reasonForVisit`, `notes`, `fee`. |
+| `GET` | `/appointments` | Search Appointments | Search appointments with pagination.<br>Query: `patientId`, `doctorClinicId`, `status`, `startDate`, `endDate`, `page`, `limit`. |
+| `GET` | `/appointments/:id` | Get Appointment | Fetch appointment details by ID. |
+| `PUT` | `/appointments/:id` | Update Appointment | Update appointment details (`reasonForVisit`, `notes`, `fee`). |
+| `PATCH` | `/appointments/:id/status` | Update Status | Update status (`CONFIRMED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`). Enforces state machine policy. |
+| `POST` | `/appointments/:id/reschedule` | Reschedule Appointment | Reschedule appointment to a new date and time slot with overlap validation. |
+| `POST` | `/appointments/:id/cancel` | Cancel Appointment | Cancel appointment with cancellation reason and audit trail. |
+| `DELETE` | `/appointments/:id` | Soft Delete Appointment | Soft-delete an appointment record (`isDeleted: true`). |
+
+---
+
+### 2. Schedules Controller (`/schedules`)
+
+| Method | Endpoint Path | Summary | Description & Payload / Query Params |
+|---|---|---|---|
+| `POST` | `/schedules/doctor` | Set Doctor Schedule | Set or replace a doctor's weekly working schedule, shift hours, and slot duration.<br>Payload: `doctorClinicId`, `slotDurationMinutes`, `weeklySchedule: [{ dayOfWeek, isWorkingDay, shifts, breaks }]`. |
+| `POST` | `/schedules/exception` | Add Schedule Exception | Add doctor day-off, holiday, or emergency leave exception.<br>Payload: `doctorClinicId`, `startDate`, `endDate`, `reason`, `type`. |
+| `GET` | `/schedules/available-slots` | Get Available Slots | Calculate real-time available time slots for a doctor on a specific date.<br>Query: `doctorClinicId`, `date` (YYYY-MM-DD). |
+
+---
+
+### 3. Prescriptions Controller (`/prescriptions`)
+
+| Method | Endpoint Path | Summary | Description & Payload / Query Params |
+|---|---|---|---|
+| `POST` | `/prescriptions` | Issue Prescription | Issue a new digital prescription for a patient.<br>Payload: `patientId`, `doctorId`, `clinicId`, `appointmentId`, `diagnosis`, `items: [{ medicineName, dosage, frequency, durationDays, instructions }]`, `notes`. |
+| `GET` | `/prescriptions` | Search Prescriptions | Search prescriptions with pagination.<br>Query: `patientId`, `doctorId`, `clinicId`, `status`, `startDate`, `endDate`, `page`, `limit`. |
+| `GET` | `/prescriptions/:id` | Get Prescription Details | Fetch prescription details by ID. |
+| `POST` | `/prescriptions/:id/cancel` | Cancel Prescription | Revoke/cancel an issued prescription with a documented cancellation reason. |
+
+---
+
+## 🛡️ Business Rules & Domain Policies
+
+1. **Appointment Slot Policy (`AppointmentSlotPolicy`)**:
+   - Rejects bookings for dates/times in the past.
+   - Enforces slot duration matching doctor schedule configuration.
+
+2. **Appointment Status Policy (`AppointmentStatusPolicy`)**:
+   - Enforces finite state machine rules:
+     - `CONFIRMED` $\rightarrow$ `COMPLETED` \| `CANCELLED` \| `NO_SHOW`
+     - `CANCELLED` is a terminal status (cannot transition back to `CONFIRMED`).
+     - `COMPLETED` is a terminal status.
+
+3. **Real-time Slot Generation Algorithm (`SlotGeneratorService`)**:
+   - Parses doctor shift hours for the target day of week.
+   - Subtracts configured break windows.
+   - Subtracts existing active/confirmed bookings.
+   - Evaluates schedule exceptions (holidays/leaves).
+
+4. **Prescription Status State Machine (`PrescriptionEntity`)**:
+   - Validates medication item fields (`medicineName`, `dosage`, `frequency`, `durationDays`).
+   - Prevents cancelling an already cancelled or fulfilled prescription.
+
+5. **Domain Exception Filter (`DomainExceptionFilter`)**:
+   - Automatically catches domain exceptions and returns structured HTTP error responses (`400 Bad Request`, `404 Not Found`, `409 Conflict`).
+
+---
+
+## 💾 Database Schemas
+
+### 1. `AppointmentSchema` (`appointments` collection)
+- `_id`: ObjectId
+- `bookingCode`: string (`BOOK-{id}`)
+- `patientId`: string (indexed)
+- `doctorClinicId`: string (indexed)
+- `scheduleId`: string
+- `appointmentDate`: Date
+- `timeSlot`: string (`HH:mm`)
+- `queueNumber`: number
+- `estimatedEntryTime`: string
+- `durationMinutes`: number
+- `status`: enum (`CONFIRMED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`)
+- `type`: enum (`IN_PERSON`, `ONLINE`)
+- `reasonForVisit`: string
+- `notes`: string
+- `cancellationReason`: string
+- `cancelledBy`: string
+- `fee`: number
+- `isPaid`: boolean
+- `isDeleted`: boolean
+
+### 2. `PrescriptionSchema` (`prescriptions` collection)
+- `_id`: ObjectId
+- `prescriptionCode`: string (`RX-{id}`)
+- `patientId`: string (indexed)
+- `doctorId`: string (indexed)
+- `clinicId`: string (indexed)
+- `appointmentId`: string (optional)
+- `diagnosis`: string
+- `items`: Array of `{ medicineName, dosage, frequency, durationDays, instructions }`
+- `status`: enum (`ACTIVE`, `FULFILLED`, `CANCELLED`, `EXPIRED`)
+- `notes`: string
+- `cancelledAt`: Date
+- `cancellationReason`: string
+
+---
+
+## 🧪 Unit Testing Suite
+
+The service includes **80 unit test cases** covering domain entities, policies, and use cases:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
+# Run all unit tests with Vitest
 $ npm run test
 
-# e2e tests
-$ npm run test:e2e
+# Run build
+$ npm run build
 
-# test coverage
-$ npm run test:cov
+# Start development server
+$ npm run start:dev
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
